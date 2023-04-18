@@ -6,61 +6,49 @@ import model.Product;
 import java.util.List;
 import java.util.Scanner;
 
-public class CategoryProductMain {
-
-    private static Scanner scanner = new Scanner(System.in);
-
-    private static final CategoryManager CATEGORY_MANAGER = new CategoryManager();
-    private static final ProductManager PRODUCT_MANAGER = new ProductManager();
+public class CategoryProductMain implements Commands {
+    public static final Scanner SCANNER = new Scanner(System.in);
+    public static final CategoryManager CATEGORY_MGR = new CategoryManager();
+    public static final ProductManager PRODUCT_MGR = new ProductManager();
 
     public static void main(String[] args) {
         boolean isRun = true;
-
         while (isRun) {
-            System.out.println("Please input 0 for Exit");
-            System.out.println("Please input 1 for Add Category");
-            System.out.println("Please input 2 for Edit Category By Id");
-            System.out.println("Please input 3 for Delete Category By Id");
-            System.out.println("Please input 4 for Add Product");
-            System.out.println("Please input 5 for Edit Product By Id");
-            System.out.println("Please input 6 for Delete Product By Id");
-            System.out.println("Please input 7 for Print Sum of products");
-            System.out.println("Please input 8 for Print Max of price product");
-            System.out.println("Please input 9 for Print Min of price product");
-            String command = scanner.nextLine();
+            Commands.printCommands();
+            String command = SCANNER.nextLine();
             switch (command) {
-                case "0":
+                case EXIT:
                     isRun = false;
                     break;
-                case "1":
+                case ADD_CATEGORY:
                     addCategory();
                     break;
-                case "2":
-                    editCategoryById();
+                case EDIT_CATEGORY:
+                    editCategory();
                     break;
-                case "3":
-                    deleteCategoryById();
+                case DELETE_CATEGORY:
+                    deleteCategory();
                     break;
-                case "4":
+                case ADD_PRODUCT:
                     addProduct();
                     break;
-                case "5":
-                    editProductById();
+                case EDIT_PRODUCT:
+                    editProduct();
                     break;
-                case "6":
-                    deleteProductById();
+                case DELETE_PRODUCT:
+                    deleteProduct();
                     break;
-                case "7":
-                    printSumOfProducts();
+                case COUNT_OF_PRODUCTS:
+                    PRODUCT_MGR.countOfProducts();
                     break;
-                case "8":
-                    printMaxOfPriceProduct();
+                case MAX_PRICE:
+                    PRODUCT_MGR.maxPriceProduct();
                     break;
-                case "9":
-                    printMinOfPriceProduct();
+                case MIN_PRICE:
+                    PRODUCT_MGR.minPriceProduct();
                     break;
-                case "10":
-                    PrintAvgOfPriceProduct();
+                case AVG:
+                    PRODUCT_MGR.averagePrice();
                     break;
                 default:
                     System.out.println("Invalid Command");
@@ -68,81 +56,121 @@ public class CategoryProductMain {
         }
     }
 
-    private static void PrintAvgOfPriceProduct() {
+    public static void printCategories() {
+        List<Category> all = CATEGORY_MGR.getAll();
+        for (Category category : all) {
+            System.out.println(category);
+        }
     }
 
-    private static void printMinOfPriceProduct() {
-
-    }
-
-    private static void printMaxOfPriceProduct() {
-
-    }
-
-    private static void printSumOfProducts() {
-        List<Product> all = PRODUCT_MANAGER.getAll();
+    public static void printProducts() {
+        List<Product> all = PRODUCT_MGR.getAll();
         for (Product product : all) {
             System.out.println(product);
         }
     }
 
-    private static void deleteProductById() {
-        List<Product> all = PRODUCT_MANAGER.getAll();
-        for (Product product : all) {
-            System.out.println(product);
-        }
-        System.out.println("please choose product id");
-        int Id = Integer.parseInt(scanner.nextLine());
-        PRODUCT_MANAGER.removeById(Id);
-        System.out.println("product removed");
-    }
-
-    private static void editProductById() {
-
-    }
-
-    private static void addProduct() {
-        List<Category> all = CATEGORY_MANAGER.getAll();
-        for (Category category : all) {
-            System.out.println(category);
-        }
-        System.out.println("Please choose category id");
-        int id = Integer.parseInt(scanner.nextLine());
-        Category category = CATEGORY_MANAGER.getById(id);
-        if (category != null) {
-            System.out.println("Please input product name,description,price,quantity,category");
-            String productStr = scanner.nextLine();
-            String[] productData = productStr.split(",");
-            Product product = new Product();
-            product.setCategory(category);
-            product.setName(productData[0]);
-            product.setDescription(productData[1]);
-            product.setPrice(Double.valueOf(productData[2]));
-            product.setQuantity(Integer.parseInt(productData[3]));
-            PRODUCT_MANAGER.save(product);
-        }
-    }
-
-    private static void deleteCategoryById() {
-        List<Category> all = CATEGORY_MANAGER.getAll();
-        for (Category category : all) {
-            System.out.println(category);
-        }
-        System.out.println("Please choose category id");
-        int id = Integer.parseInt(scanner.nextLine());
-        CATEGORY_MANAGER.removeById(id);
-        System.out.println("Category removed");
-    }
-
-    private static void editCategoryById() {
-    }
-
-    private static void addCategory() {
+    public static void addCategory() {
         System.out.println("Please input category name");
-        String companyStr = scanner.nextLine();
-        String[] companyData = companyStr.split(",");
+        String nameStr = SCANNER.nextLine();
         Category category = new Category();
-        category.setName(companyData[0]);
-        CATEGORY_MANAGER.save(category);
+        category.setName(nameStr);
+        CATEGORY_MGR.saveCategory(category);
+    }
+
+    public static void editCategory() {
+        printCategories();
+        System.out.println("Choose category id and new name");
+        try {
+            String[] data = SCANNER.nextLine().split(",");
+            Category categoryById = CATEGORY_MGR.getCategoryById(Integer.parseInt(data[0]));
+            if (categoryById == null) {
+                System.out.println("Wrong id");
+                return;
+            }
+            categoryById.setName(data[1]);
+            CATEGORY_MGR.edit(categoryById);
+        } catch (NumberFormatException e) {
+            System.out.println("Please input id correctly");
+        }
+    }
+
+    public static void deleteCategory() {
+        printCategories();
+        System.out.println("Choose category id ");
+        try {
+            int id = Integer.parseInt(SCANNER.nextLine());
+            Category categoryById = CATEGORY_MGR.getCategoryById(id);
+            if (categoryById == null) {
+                System.out.println("Wrong id");
+                return;
+            }
+            CATEGORY_MGR.deleteCategory(categoryById);
+        } catch (NumberFormatException e) {
+            System.out.println("Please input id correctly");
+        }
+    }
+
+    public static void addProduct() {
+        printCategories();
+        System.out.println("Please input category id for product");
+        try {
+            int categoryId = Integer.parseInt(SCANNER.nextLine());
+            Category categoryById = CATEGORY_MGR.getCategoryById(categoryId);
+            if (categoryById == null) {
+                System.out.println("Wrong category id");
+                return;
+            }
+            System.out.println("Please input product name,description ,price,quantity");
+            String[] dataStr = SCANNER.nextLine().split(",");
+            Product product = new Product();
+            product.setName(dataStr[0]);
+            product.setDescription(dataStr[1]);
+            product.setPrice(Integer.parseInt(dataStr[2]));
+            product.setQuantity(Integer.parseInt(dataStr[3]));
+            product.setCategory(categoryById);
+            PRODUCT_MGR.saveProduct(product);
+        } catch (NumberFormatException e) {
+            System.out.println("Please input data  carefully ");
+        }
+    }
+
+    public static void editProduct() {
+        printProducts();
+        System.out.println("Please input product id");
+        int productId = Integer.parseInt(SCANNER.nextLine());
+        Product product = PRODUCT_MGR.getProductById(productId);
+        if (product == null) {
+            System.out.println("Wrong product id");
+            return;
+        }
+        System.out.println("Please input new name, description,price quantity");
+        String[] dataStr = SCANNER.nextLine().split(",");
+        System.out.println("Please choose new category id");
+        printCategories();
+        int categoryID = Integer.parseInt(SCANNER.nextLine());
+        Category categoryById = CATEGORY_MGR.getCategoryById(categoryID);
+        if (categoryById == null) {
+            System.out.println("Wrong category id");
+            return;
+        }
+        product.setName(dataStr[0]);
+        product.setDescription(dataStr[1]);
+        product.setPrice(Integer.parseInt(dataStr[2]));
+        product.setQuantity(Integer.parseInt(dataStr[3]));
+        product.setCategory(categoryById);
+        PRODUCT_MGR.edit(product);
+    }
+
+    public static void deleteProduct() {
+        printProducts();
+        System.out.println("Please choose product's id");
+        int id = Integer.parseInt(SCANNER.nextLine());
+        Product product = PRODUCT_MGR.getProductById(id);
+        if (product == null) {
+            System.out.println("Wrong id");
+            return;
+        }
+        PRODUCT_MGR.deleteProduct(product);
     }
 }

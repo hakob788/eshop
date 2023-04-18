@@ -3,100 +3,74 @@ package manager;
 import db.DBConnectionProvider;
 import model.Category;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CategoryManager {
+    private final Connection connection = DBConnectionProvider.getInstance().getConnection();
 
-    private Connection connection = DBConnectionProvider.getInstance().getConnection();
-
-    public void save(Category category) {
-        String sql = "INSERT INTO company(name,country) VALUES(?,?)";
-
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+    public void saveCategory(Category category) {
+        String sqlCommand = "INSERT INTO category(name) VALUES(?)";
+        try (PreparedStatement ps = connection.prepareStatement(sqlCommand, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, category.getName());
             ps.executeUpdate();
             ResultSet generatedKeys = ps.getGeneratedKeys();
             if (generatedKeys.next()) {
                 category.setId(generatedKeys.getInt(1));
             }
-            System.out.println("Company inserted into DB");
+            System.out.println("Category is added to DB");
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    public Category getById(int id) {
+    public void edit(Category category) {
+        String sqlcommand = "UPDATE category Set name = ? WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sqlcommand)) {
+            statement.setString(1, category.getName());
+            statement.setInt(2, category.getId());
+            statement.executeUpdate();
+            System.out.println("category is edited");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Category getCategoryById(int id) {
         try (Statement statement = connection.createStatement()) {
-            ResultSet resultSet = statement.executeQuery("Select * from company where id = " + id);
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM  category WHERE id = " + id);
             if (resultSet.next()) {
-                return getCategoryFromResultSet(resultSet);
+                return new Category(resultSet.getInt("id"), resultSet.getString("name"));
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return null;
     }
 
+    public void deleteCategory(Category category) {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE  FROM category WHERE id = " + category.getId());
+            System.out.println("Category is deleted");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public List<Category> getAll() {
-        List<Category> companyList = new ArrayList<>();
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("Select * from company");
+        List<Category> categories = new ArrayList<>();
+        try (Statement statement = connection.createStatement()) {
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM category;");
             while (resultSet.next()) {
-                companyList.add(getCategoryFromResultSet(resultSet));
+                Category category = new Category(resultSet.getInt(1), resultSet.getString(2));
+                categories.add(category);
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return companyList;
-    }
-
-    public List<Category> getByCountry(String country) {
-        List<Category> companyList = new ArrayList<>();
-
-        try {
-            PreparedStatement ps = connection.prepareStatement("Select * from company where country = ?");
-            ps.setString(1, country);
-            ResultSet resultSet = ps.executeQuery();
-            while (resultSet.next()) {
-                companyList.add(getCategoryFromResultSet(resultSet));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return companyList;
-    }
-
-    private Category getCategoryFromResultSet(ResultSet resultSet) throws SQLException {
-        Category category = new Category();
-        category.setId(resultSet.getInt("id"));
-        category.setName(resultSet.getString("name"));
-        return category;
-    }
-
-    public void removeById(int companyId) {
-        String sql = "DELETE FROM company WHERE id = " + companyId;
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate(sql);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
-    public void update(Category category) {
-        String sql = "UPDATE company SET name = '%s', country = '%s' WHERE id = %d";
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate(String.format(sql, category.getName(), category.getId()));
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-
+        return categories;
     }
 }

@@ -1,40 +1,48 @@
 package manager;
 
 import db.DBConnectionProvider;
+import model.Category;
 import model.Product;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ProductManager {
-
-    private Connection connection = DBConnectionProvider.getInstance().getConnection();
+    private final Connection CONNECTION = DBConnectionProvider.getInstance().getConnection();
     private CategoryManager categoryManager = new CategoryManager();
 
-    public void save(Product product) {
-        try (Statement statement = connection.createStatement()) {
-            String sql = "INSERT INTO employee(name,surname,email,company_id) VALUES('%s','%s','%s',%d)";
-            statement.executeUpdate(String.format(sql, product.getName(), product.getDescription(), product.getPrice(),
-                    product.getQuantity(),product.getCategory(), Statement.RETURN_GENERATED_KEYS));
-            ResultSet generatedKeys = statement.getGeneratedKeys();
+    public void saveProduct(Product product) {
+        String sqlCommand = "INSERT INTO product(name,description,price,quantity,category_id) VALUES(?,?,?,?,?);";
+        try (PreparedStatement ps = CONNECTION.prepareStatement(sqlCommand, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, product.getName());
+            ps.setString(2, product.getDescription());
+            ps.setInt(3, product.getPrice());
+            ps.setInt(4, product.getQuantity());
+            ps.setInt(5, product.getCategory().getId());
+            ps.executeUpdate();
+            ResultSet generatedKeys = ps.getGeneratedKeys();
             if (generatedKeys.next()) {
                 product.setId(generatedKeys.getInt(1));
             }
-            System.out.println("employee inserted into DB");
+            System.out.println("Product is added to DB");
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    public Product getById(int id) {
-        try (Statement statement = connection.createStatement()) {
-            ResultSet resultSet = statement.executeQuery("Select * from employee where id = " + id);
+    public Product getProductById(int id) {
+        try (Statement statement = CONNECTION.createStatement()) {
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM  product WHERE id = " + id);
             if (resultSet.next()) {
-                return getProductFromResultSet(resultSet);
+                int productId = resultSet.getInt("id");
+                String name = resultSet.getString("name");
+                String description = resultSet.getString("description");
+                int price = resultSet.getInt("price");
+                int quantity = resultSet.getInt("quantity");
+                int categoryId = resultSet.getInt("category_id");
+                Category categoryById = categoryManager.getCategoryById(categoryId);
+                return new Product(productId, name, description, price, quantity, categoryById);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -42,53 +50,90 @@ public class ProductManager {
         return null;
     }
 
+    public void edit(Product product) {
+        String sql = "UPDATE product SET name = ?, description = ? , price = ? , quantity = ?, category_id = ? WHERE id = ?;";
+        try (PreparedStatement preparedStatement = CONNECTION.prepareStatement(sql)) {
+            preparedStatement.setString(1, product.getName());
+            preparedStatement.setString(2, product.getDescription());
+            preparedStatement.setInt(3, product.getPrice());
+            preparedStatement.setInt(4, product.getQuantity());
+            preparedStatement.setInt(5, product.getCategory().getId());
+            preparedStatement.setInt(6, product.getId());
+            preparedStatement.executeUpdate();
+            System.out.println("Product is edited");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteProduct(Product product) {
+        try (Statement statement = CONNECTION.createStatement()) {
+            statement.executeUpdate("DELETE  FROM product WHERE id = " + product.getId());
+            System.out.println("Product is deleted");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void countOfProducts() {
+        try (Statement statement = CONNECTION.createStatement()) {
+            ResultSet resultSet = statement.executeQuery("SELECT SUM(quantity) FROM product;");
+            if (resultSet.next()) {
+                System.out.println(resultSet.getInt(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void minPriceProduct() {
+        try (Statement statement = CONNECTION.createStatement()) {
+            ResultSet resultSet = statement.executeQuery("SELECT MIN(price) FROM product;");
+            if (resultSet.next()) {
+                System.out.println(resultSet.getInt(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void maxPriceProduct() {
+        try (Statement statement = CONNECTION.createStatement()) {
+            ResultSet resultSet = statement.executeQuery("SELECT MAX(price) FROM product;");
+            if (resultSet.next()) {
+                System.out.println(resultSet.getInt(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void averagePrice() {
+        try (Statement statement = CONNECTION.createStatement()) {
+            ResultSet resultSet = statement.executeQuery("SELECT AVG(price) FROM product;");
+            if (resultSet.next()) {
+                System.out.println(resultSet.getDouble(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public List<Product> getAll() {
-        List<Product> employees = new ArrayList<>();
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("Select * from employee");
+        List<Product> categories = new ArrayList<>();
+        try (Statement statement = CONNECTION.createStatement()) {
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM product;");
             while (resultSet.next()) {
-                employees.add(getProductFromResultSet(resultSet));
+                int categoryId = resultSet.getInt(6);
+                Category categoryById = categoryManager.getCategoryById(categoryId);
+                Product product = new Product(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3),
+                        resultSet.getInt(4), resultSet.getInt(5), categoryById);
+                categories.add(product);
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return employees;
-    }
-
-    public List<Product> getAllByCompanyId(int companyId) {
-        List<Product> employees = new ArrayList<>();
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("Select * from employee where company_id=" + companyId);
-            while (resultSet.next()) {
-                employees.add(getProductFromResultSet(resultSet));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return employees;
-    }
-
-    private Product getProductFromResultSet(ResultSet resultSet) throws SQLException {
-        Product product = new Product();
-        product.setId(resultSet.getInt("id"));
-        product.setName(resultSet.getString("name"));
-        product.setDescription(resultSet.getString("description"));
-        product.setPrice(resultSet.getDouble("price"));
-        product.setQuantity(resultSet.getInt("quantity"));
-        int categoryId = resultSet.getInt("company_id");
-        product.setCategory(categoryManager.getById(categoryId));
-        return product;
-    }
-
-
-    public void removeById(int employeeId) {
-        String sql = "DELETE FROM employee WHERE id = " + employeeId;
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate(sql);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return categories;
     }
 }
